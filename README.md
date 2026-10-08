@@ -188,6 +188,10 @@ tests/core.test.js            core.js 的测试（82 项）
 tools/lib.js                  PNG 编码 / ZIP 打包 / CRC32，零依赖
 tools/make-icons.js           生成扩展图标，含多尺寸预览与场景图模式
 tools/pack.js                 打包扩展（上传 AMO）或整个项目（源码审核）
+tools/check-commit-msg.js     提交信息校验器
+tools/git-hooks/commit-msg    校验钩子（core.hooksPath 指向这里）
+CONTRIBUTING.md               提交信息规范（约定式提交）
+.gitmessage                   提交模板
 LICENSE                       GPL-3.0
 ```
 
