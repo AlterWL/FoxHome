@@ -1,0 +1,12 @@
+# 打包产物：node tools/pack.js 生成，随时可重建
+dist/
+
+# 依赖与编辑器
+node_modules/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 会话工具生成的配置，不属于项目本身
+reasonix.toml
