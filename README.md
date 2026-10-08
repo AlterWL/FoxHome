@@ -48,6 +48,7 @@
 | 1.0.1 | 页面搬进扩展，用 `chrome_url_overrides` 接管**新标签页** | 路径变成 `FoxHome/extension/index.html`；**数据要迁移一次**（`file://` 和 `moz-extension://` 的本地存储互不相通）：旧页面「导出备份」→ 新标签页「导入备份」 |
 | 1.0.2 | 用 `chrome_settings_overrides` 把**主页**也接管 | 什么都不用做（数据不受影响） |
 | 1.0.3 | 快捷方式区支持**按浏览历史自动补充**，总个数可设 | 什么都不用做（新设置默认开启，原有链接和背景不受影响） |
+| 1.0.4 | 为公开上架精简：移除 `file://` 模式的桥接代码（`content.js` / `background.js`），扩展只剩「接管新标签页 + 主页」一个职责 | 如果你以前直接用 `file://` 路径打开过这个页面，那条路不再能读到历史了（改用新标签页或主页）；已保存的数据不受影响 |
 
 旧路径的文件已被替换、而你之前也没特意配过链接或背景的话，那就是默认值，直接往下用即可。
 
@@ -102,12 +103,13 @@
 
 ## 三、扩展在做什么
 
-扩展干两件事：
+只有一个职责：**接管新标签页和主页**。
 
-1. **接管新标签页** —— 用 `chrome_url_overrides.newtab` 把它换成这个起始页。这类页面有特权 API 权限，所以可以直接调 `browser.history` 读取浏览历史，不需要任何中转。
-2. **给 `file://` 模式兜底** —— 如果你更喜欢用 `file://` 路径打开同一个页面（比如设为启动主页），扩展的 content script 会把历史转发过去。数据只在你自己的电脑上从扩展流向页面，**不经过任何服务器**。
+用 `chrome_url_overrides.newtab` 把新标签页换成这个起始页，用 `chrome_settings_overrides.homepage` 把主页也指过来。这类页面有特权 API 权限，所以页面自己就能调 `browser.history` 读浏览历史 —— 不需要后台脚本，也不需要 content script。
 
-不装扩展时，页面本身（搜索、链接、背景）照常可用，只有「最近浏览」会显示一行提示。
+所以扩展的权限只有一项 `history`，代码里没有中转、没有消息通道。数据只在你自己的电脑上从浏览器流向页面，**不经过任何服务器**。
+
+> 这个页面也可以直接用 `file://` 路径在浏览器里打开（看布局、调样式都行），但那时浏览器不会把 `browser` 暴露给页面脚本，所以**读不到浏览历史** —— 这是浏览器的安全边界，不是 bug。
 
 ### 安装
 
@@ -116,12 +118,9 @@
 **临时载入（改代码时自测用）**
 
 1. `about:debugging#/runtime/this-firefox` → **「临时载入附加组件…」** → 选 `extension/manifest.json`
-2. 新标签页应该立刻变成起始页（临时载入也支持 `chrome_url_overrides`）
-3. 如果还想用 `file://` 模式：`about:addons` → FoxHome → 权限 → 打开 **「访问文件网址」**
+2. 新标签页应该立刻变成起始页（临时载入同样支持 `chrome_url_overrides`）
 
 > ⚠️ 临时载入的扩展**在 Firefox 重启后会失效**，改完代码要重新载入一次。
-
-> 目录名不是 `FoxHome`、或者项目换了位置？改三个地方：`extension/manifest.json` 里的 `content_scripts.matches`、`extension/background.js` 顶部的 `ALLOWED_PAGE`、以及 README 里给出的主页路径。
 
 ### 可调的项（齿轮 → 「最近浏览」）
 
@@ -148,11 +147,11 @@
 
 需要注意：
 
-- **数据认的是 `index.html` 这个文件的完整路径。** Firefox 把每个 `file://` 文件当作独立来源，所以：同一个路径下关掉浏览器再打开，设置和背景图会自动恢复（已实测）；但把项目文件夹**改名或挪到别处**、或者改用别的文件名，旧数据就读不到了。搬家前先在旧位置「导出备份」，到新位置再「导入备份」。
+- **数据存在扩展自己的来源下**（`moz-extension://…`），所以跟项目放在哪个目录、文件夹叫什么名字都无关了 —— 挪动、改名都不会丢数据。但**卸载扩展会连数据一起清掉**，所以还是建议偶尔「导出备份」。
 - 清理浏览数据（勾选了「网站数据 / 离线缓存」）、换浏览器、换电脑，同样会丢，所以建议偶尔导出一次备份。
 - 上传的背景图片会被压缩（长边最多 2560px，转 JPEG）后以 base64 存在同一处，只保留最近一张；不需要了可以在设置里「移除图片」。
 - 本地存储总量约 5 MB，所以超大背景图会被压到 1.4M 字符以内；如果还放不下，页面会给出提示。
-- 扩展的 `history` 权限比较敏感（Firefox 会明确提示），它只被用来读历史，且后台会校验请求来自 `FoxHome/index.html`，其它本地网页拿不到你的浏览记录。
+- 扩展只申请了 `history` 一项权限（Firefox 会明确提示），它只用于「最近浏览」卡片和快捷方式的自动补充，读到的数据在本机渲染、不外传。
 
 ---
 
@@ -177,15 +176,14 @@
 ## 六、文件结构
 
 ```
-extension/index.html          起始页结构（也是被扩展接管的新标签页）
+extension/index.html          起始页结构（也是被扩展接管的新标签页与主页）
 extension/assets/styles.css   全部样式，含浅色文字与「玻璃」卡片的视觉效果
 extension/assets/core.js      纯逻辑：网址解析、搜索引擎、快捷方式与历史处理、数据清洗
 extension/assets/app.js       页面行为：渲染、交互、图片压缩、本地保存、读取历史
 extension/manifest.json       扩展清单（MV3）
-extension/background.js       给 file:// 模式提供历史，并校验请求来源
-extension/content.js          把历史从后台搬到 file:// 页面
 extension/icons/*.png         扩展图标（16/32/48/96/128，脚本生成）
 docs/*.png                    README 里用的截图
+docs/amo-listing.md           AMO 上架素材（摘要、描述、审核员备注、隐私政策）
 tests/core.test.js            core.js 的测试（82 项）
 tools/lib.js                  PNG 编码 / ZIP 打包 / CRC32，零依赖
 tools/make-icons.js           生成扩展图标，含多尺寸预览与场景图模式
@@ -245,7 +243,7 @@ node tools/pack.js --source     # 生成 dist/foxhome-<版本>-source.zip
 
 包里是完整项目（扩展、图标生成脚本、测试、说明），并自动附带一份**英文说明 `SOURCE-NOTES.md`**，AMO 表单里那段说明可以直接抄它：
 
-> The JavaScript that ships in the add-on is hand-written, unminified, untranspiled and unbundled. `manifest.json`, `background.js` and `content.js` are copied byte-for-byte into the signed package. The only generated files are `extension/icons/*.png`, produced by `tools/make-icons.js` — rendered pixel by pixel in plain JavaScript and encoded to PNG with Node's built-in `zlib`; no third-party packages, no network access.
+> The HTML, CSS and JavaScript that ship in the add-on are hand-written, unminified, untranspiled and unbundled. `manifest.json`, `index.html` and `assets/*` are copied byte-for-byte into the signed package. The only generated files are `extension/icons/*.png`, produced by `tools/make-icons.js` — rendered pixel by pixel in plain JavaScript and encoded to PNG with Node's built-in `zlib`; no third-party packages, no network access.
 
 图标生成是**确定性**的（同样的脚本产出完全相同的字节，已实测），审核员可以自己重跑 `node tools/make-icons.js` 验证。
 
@@ -314,19 +312,16 @@ node tools/make-icons.js --variant=sunrise                            # 换一�
 **升级后链接和背景没了？**
 1.0.0 → 1.0.1 把页面从 `file://` 搬进了扩展，两者的本地存储互不相通。用旧页面的「导出备份」+ 新标签页的「导入备份」迁移一次即可；详见「一、让它生效」里的版本变更表。
 
-**「最近浏览」一直显示没检测到扩展？**
-新标签页里不该出现这句。如果出现：
-- **在 `file://` 页面里**（你自己直接用路径打开的）：`about:addons` → FoxHome → 权限 → 打开 **「访问文件网址」**，然后刷新页面。
-- **在扩展接管的新标签页里**：说明扩展没能拿到 `history` 权限，看 `about:debugging` → FoxHome → 「检查」的控制台报错。
+**「最近浏览」显示读不到历史？**
+正常情况下新标签页和主页都能读到。如果出现这个提示：
+- **确认你是通过扩展打开这个页面的**（按 `Ctrl+T`，或用工具栏的主页按钮）。如果直接用 `file://` 路径打开这个 HTML 文件，浏览器不允许页面读历史 —— 这是安全边界，不是 bug。
+- **在扩展接管的新标签页里仍读不到**：说明没拿到 `history` 权限。去 `about:debugging` → FoxHome → 「检查」看控制台报错，或在 `about:addons` 里确认权限没被关掉。
 
 **图标有的是彩色，有的是字母方块？**
 卡片会尝试加载 `网站域名/favicon.ico`，需要联网。取不到（或站点没放这个文件）就退回「首字母 + 按域名生成的配色色块」，属于正常回退。不想要网站图标可以在设置里关掉。
 
 **输入了网址却被拿去搜索了？**
 只有看起来确实是网址的输入才会直接跳转：带点的域名、`localhost`、IP、或者 `http(s)://` 开头。含空格、或者带 `:` 但不是 `host:port` 形式的内容一律当搜索词（这样 `javascript:` 之类的伪协议不可能被当成地址打开）。
-
-**「最近浏览」一直显示没检测到扩展？**
-按顺序检查：扩展是否已临时载入（`about:debugging`）→ 是否在 `about:addons` 里给它打开了 **「访问文件网址」** → 是否刷新过主页。三样都对了还不行，就看 `about:debugging` 里扩展的「检查」控制台有没有报错。
 
 **开了截图缩略图，卡片是空白？**
 `s0.wp.com` 首次遇到一个网址时需要现生成缩略图（几秒到几十秒），期间返回的是空白图；过一会儿刷新就好，生成过的会缓存。如果站点禁止被截图，就会一直是空白 —— 此时建议关掉这个开关。注意开启后每次都会把你的网址发给这个第三方服务。

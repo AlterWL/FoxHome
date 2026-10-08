@@ -608,18 +608,9 @@
 
   /* ============================================================== 浏览历史 */
 
-  // 与 extension/content.js 约定的消息通道（file:// 模式用）
-  const CHANNEL_PAGE = 'foxhome-page';
-  const CHANNEL_EXTENSION = 'foxhome-extension';
-  // 扩展没装、或没被授权访问文件网址时，谁都不会回话，用超时兜底。
-  // 扩展是本地通信，正常几十毫秒内就回，1.2 秒足够；真晚了数据到了也会照常更新。
-  const EXTENSION_TIMEOUT = 1200;
-
-  // 数据来源有两种：
-  //   1) 页面跑在扩展里（新标签页被 chrome_url_overrides 接管）—— 有特权 API，直接读
-  //   2) 页面以 file:// 打开 —— 由 content.js 通过 postMessage 转发
-  // 在 file:// 页面里浏览器不会把 browser 暴露给页面脚本（content script 是隔离世界），
-  // 所以这个判断不会误判。
+  // 新标签页 / 主页都由扩展接管，这类页面有特权 API 权限，可以直接读浏览历史，
+  // 不需要任何中转。（如果从 file:// 直接打开这个页面，浏览器不会把 browser 暴露给
+  // 页面脚本，那时读不到历史 —— 这是浏览器的安全边界，不是 bug。）
   const privilegedApi = (typeof browser !== 'undefined' && browser && browser.history
     && typeof browser.history.search === 'function') ? browser : null;
 
@@ -628,32 +619,14 @@
     items: [],
     error: '',
   };
-  let historyTimer = 0;
 
-  function requestHistory(force) {
-    if (privilegedApi) return requestHistoryDirect();
+  function requestHistory() {
+    if (!privilegedApi) {
+      history.status = 'missing';
+      renderHistoryBoard();
+      return;
+    }
 
-    if (history.status !== 'ready') history.status = 'loading';
-    updateHistoryStatusText();
-
-    window.postMessage({
-      source: CHANNEL_PAGE,
-      type: 'history-request',
-      days: Core.HISTORY_DAYS,
-      force: !!force,
-    }, '*');
-
-    window.clearTimeout(historyTimer);
-    historyTimer = window.setTimeout(function () {
-      if (history.status === 'loading' || history.status === 'idle') {
-        history.status = 'missing';
-        renderHistoryBoard();
-      }
-    }, EXTENSION_TIMEOUT);
-  }
-
-  /** 扩展内页面：直接问浏览器要，不需要任何中转，也不会超时 */
-  function requestHistoryDirect() {
     if (history.status !== 'ready') history.status = 'loading';
     updateHistoryStatusText();
 
@@ -712,8 +685,8 @@
       return '读取历史失败：' + history.error;
     }
     if (history.status === 'missing') {
-      return '没有检测到 FoxHome 扩展 —— 普通网页拿不到浏览历史，需要有扩展转交。'
-        + '如果你是从文件直接打开这个页面的，可以在扩展详情里打开「访问文件网址」，或改用扩展接管的新标签页。';
+      return '这个页面读不到浏览历史 —— 只有扩展接管的新标签页和主页才有这个权限。'
+        + '请按 Ctrl+T 打开新标签页，或把主页指向本扩展（在 about:preferences#home 里设）。';
     }
     return '正在读取浏览历史…';
   }
@@ -773,35 +746,15 @@
 
   function updateHistoryStatusText() {
     if (history.status === 'ready') {
-      els.historyStatus.textContent = (privilegedApi ? '直接读取浏览器历史' : '经由扩展读取浏览器历史')
-        + '，共 ' + history.items.length + ' 条原始记录。';
+      els.historyStatus.textContent = '已读取浏览器历史，共 ' + history.items.length + ' 条原始记录。';
     } else if (history.status === 'missing') {
-      els.historyStatus.textContent = privilegedApi
-        ? '没有拿到 history 权限，读不到浏览历史。'
-        : '未检测到 FoxHome 扩展。装好扩展、并在扩展详情里允许「访问文件网址」之后，从文件打开的这个页面也能读到真实历史。';
+      els.historyStatus.textContent = '当前页面没有读取浏览历史的权限 —— 请通过扩展接管的新标签页或主页打开它。';
     } else if (history.status === 'error') {
       els.historyStatus.textContent = '读取失败：' + history.error;
     } else {
       els.historyStatus.textContent = '正在读取浏览历史…';
     }
   }
-
-  window.addEventListener('message', function (event) {
-    if (event.source !== window) return;
-    const data = event.data;
-    if (!data || data.source !== CHANNEL_EXTENSION || data.type !== 'history') return;
-
-    window.clearTimeout(historyTimer);
-    if (data.ok) {
-      history.status = 'ready';
-      history.items = Array.isArray(data.items) ? data.items : [];
-      history.error = '';
-    } else {
-      history.status = 'error';
-      history.error = data.error || '未知错误';
-    }
-    refreshHistoryViews();
-  });
 
   /* ------------------------------------------------------- 链接编辑对话框 */
 
@@ -1059,7 +1012,7 @@
     save();
     renderLinks();
     // 刚打开自动补充、但这次会话还没拉过历史时，补一次请求
-    if (state.shortcuts.autoFill && history.status !== 'ready') requestHistory(false);
+    if (state.shortcuts.autoFill && history.status !== 'ready') requestHistory();
   });
 
   els.shortcutTotalRange.addEventListener('input', function () {
@@ -1120,7 +1073,7 @@
 
   els.historyRefresh.addEventListener('click', function () {
     history.status = history.items.length ? history.status : 'loading';
-    requestHistory(true);
+    requestHistory();
     toast('正在重新读取浏览历史…');
   });
 
@@ -1252,7 +1205,7 @@
   window.setInterval(tickClock, 1000);
 
   // 向扩展要浏览历史：历史卡片要用它，「快捷方式按历史自动补充」也要用它
-  if (state.history.enabled || state.shortcuts.autoFill) requestHistory(false);
+  if (state.history.enabled || state.shortcuts.autoFill) requestHistory();
 
   // 起始页的惯例：打开就能直接打字
   els.searchInput.focus();
