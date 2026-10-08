@@ -2,9 +2,13 @@
 
 一个给自己用的 Firefox 起始页：自定义背景 + 快捷方式 + 搜索框 + 最近浏览，界面尽量干净。
 
+![FoxHome 主页](docs/screenshot-home.png)
+
+> 截图里的浏览记录是**示例数据**，不是任何人的真实历史。
+
 做成一个本地扩展，**装上新标签页就是它**；页面本身是纯静态 HTML/CSS/JS，没有依赖、没有构建步骤、完全离线可用。
 
-- **新标签页**：扩展用 `chrome_url_overrides` 接管（`Ctrl+T` 即是），不需要任何设置
+- **新标签页 & 主页**：扩展用 `chrome_url_overrides` / `chrome_settings_overrides` 接管，装好即生效，不用手动设置
 - **背景**：内置 6 套渐变/纯色，可上传自己的图片（也可以直接把图片拖到页面上），带背景遮罩调节
 - **搜索**：Google / 必应 / 百度 / DuckDuckGo 一键切换，输入网址会直接跳转而不是去搜索
 - **快捷方式**：手动增删改、拖拽排序；还能按浏览历史**自动补充**常访问的站点，总个数可设
@@ -66,6 +70,10 @@
 | 刷新历史 | 「最近浏览」标题右侧的「刷新」按钮 |
 | 备份 | 齿轮 → 「导出备份」下载一个 JSON 文件 |
 | 恢复 | 齿轮 → 「导入备份」选之前的 JSON；「恢复默认」清空一切回到初始状态 |
+
+设置项都收在右下角的齿轮里 —— 「最近浏览」和「快捷方式」的开关、数量、屏蔽词都在那：
+
+![FoxHome 设置面板](docs/screenshot-settings.png)
 
 ### 快捷方式区（搜索框下面那排）
 
@@ -130,7 +138,7 @@
 - 不写 `*` 时按「包含」匹配 —— 写 `mail` 就能挡掉 `mail.qq.com`、`gmail.com`
 - 写 `*` 时星号是通配，但**仍然不要求从头匹配**（因为匹配的是完整的 `https://…`）—— `mail.*`、`*.example.com` 都符合直觉
 
-查询范围固定为**最近 30 天**、最多 500 条（`assets/core.js` 里的 `HISTORY_DAYS` 可改）。
+查询范围固定为**最近 30 天**、最多 500 条（`extension/assets/core.js` 里的 `HISTORY_DAYS` 可改）。
 
 ---
 
@@ -150,18 +158,19 @@
 
 ## 五、按自己的口味改默认值
 
-打开 `assets/core.js`，顶部几处常量就是所有可定制项，改完刷新页面即可生效：
+打开 `extension/assets/core.js`，顶部几处常量就是所有可定制项，改完刷新页面即可生效：
 
 | 常量 | 作用 |
 | --- | --- |
 | `ENGINES` | 搜索引擎列表（加一条就能多一个引擎） |
 | `PRESETS` | 内置背景，`css` 直接写 CSS 的 `background` 值，渐变或纯色都行 |
-| `DEFAULT_LINKS` | 首次打开时的默认链接（只影响没数据时的初始状态） |
+| `DEFAULT_LINKS` | 首次打开时的默认快捷方式（只影响没数据时的初始状态） |
 | `DEFAULT_OVERLAY` | 背景遮罩的默认强度，`0 ~ 0.8` |
 | `HISTORY_DAYS` / `HISTORY_DEFAULT_COUNT` / `HISTORY_MAX_COUNT` | 历史查询天数、默认卡片数、卡片数上限 |
+| `SHORTCUT_DEFAULT_TOTAL` / `SHORTCUT_MIN_TOTAL` / `SHORTCUT_MAX_TOTAL` | 快捷方式总个数的默认值与可调范围 |
 | `STORAGE_KEY` | 本地存储键名，改掉等于换一份干净的数据 |
 
-样式集中在 `assets/styles.css`，颜色、圆角、模糊强度都在文件开头的 `:root` 变量里，比如想让整体更透亮，调 `--glass` 和 `--veil` 即可。
+样式集中在 `extension/assets/styles.css`，颜色、圆角、模糊强度都在文件开头的 `:root` 变量里，比如想让整体更透亮，调 `--glass` 和 `--veil` 即可。
 
 ---
 
@@ -170,16 +179,18 @@
 ```
 extension/index.html          起始页结构（也是被扩展接管的新标签页）
 extension/assets/styles.css   全部样式，含浅色文字与「玻璃」卡片的视觉效果
-extension/assets/core.js      纯逻辑：网址解析、搜索引擎、历史过滤与合并、数据清洗
+extension/assets/core.js      纯逻辑：网址解析、搜索引擎、快捷方式与历史处理、数据清洗
 extension/assets/app.js       页面行为：渲染、交互、图片压缩、本地保存、读取历史
 extension/manifest.json       扩展清单（MV3）
 extension/background.js       给 file:// 模式提供历史，并校验请求来源
 extension/content.js          把历史从后台搬到 file:// 页面
 extension/icons/*.png         扩展图标（16/32/48/96/128，脚本生成）
-tests/core.test.js            core.js 的测试（69 项）
+docs/*.png                    README 里用的截图
+tests/core.test.js            core.js 的测试（82 项）
 tools/lib.js                  PNG 编码 / ZIP 打包 / CRC32，零依赖
 tools/make-icons.js           生成扩展图标，含多尺寸预览与场景图模式
 tools/pack.js                 打包扩展（上传 AMO）或整个项目（源码审核）
+LICENSE                       GPL-3.0
 ```
 
 整个扩展（含页面）都在 `extension/` 里，就是上传 AMO 的那一份；`tools/` 和 `tests/` 只在开发时用，不会被打包进去。项目里没有 `node_modules`，也没有打包产物（`dist/` 是生成的 zip，可以随时删）。
@@ -210,7 +221,7 @@ node tools/pack.js --source   # 生成 dist/foxhome-<版本>-source.zip，AMO �
 node tools/pack.js
 ```
 
-生成 `dist/foxhome-1.0.0.zip` 并列出包内文件 —— AMO 要求 `manifest.json` 在压缩包根目录，脚本会保证这一点（它自己的 ZIP 写入器，不依赖系统压缩工具）。
+生成 `dist/foxhome-<版本>.zip`（当前是 `foxhome-1.0.3.zip`）并列出包内文件 —— AMO 要求 `manifest.json` 在压缩包根目录，脚本会保证这一点（它自己的 ZIP 写入器，不依赖系统压缩工具）。
 
 ### 2. 上传签名
 
@@ -229,7 +240,7 @@ node tools/pack.js
 原因：扩展里唯一的生成物是图标 —— `extension/icons/*.png` 由 `tools/make-icons.js` 渲染生成，正落在问题里"对文件二次处理并生成扩展中的文件"这一条上。JS 本身是手写、未压缩、未打包的，但如实回答才不会留下"提供不实信息"的把柄（AMO 政策对这一点很认真）。
 
 ```bash
-node tools/pack.js --source     # 生成 dist/foxhome-1.0.0-source.zip
+node tools/pack.js --source     # 生成 dist/foxhome-<版本>-source.zip
 ```
 
 包里是完整项目（扩展、图标生成脚本、测试、说明），并自动附带一份**英文说明 `SOURCE-NOTES.md`**，AMO 表单里那段说明可以直接抄它：
