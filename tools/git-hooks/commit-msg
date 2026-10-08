@@ -1,0 +1,7 @@
+#!/bin/sh
+# git 的 commit-msg 钩子：调用 tools/check-commit-msg.js 校验提交信息。
+#
+# 启用：git config core.hooksPath tools/git-hooks
+# 关闭：git config --unset core.hooksPath
+# 临时跳过某次：git commit --no-verify
+exec node "$(dirname "$0")/../check-commit-msg.js" "$1"
