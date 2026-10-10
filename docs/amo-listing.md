@@ -48,7 +48,8 @@ clean, self-contained start page.
 ## What you get
 
 - **Clock and date** — unobtrusive, can be turned off.
-- **Search** — Google, Bing, Baidu, or DuckDuckGo; switch with one click and it
+- **Search** — Google, Bing, Baidu, or DuckDuckGo, and you can add, edit or remove
+  engines yourself with any `%s` search URL. Switch with one click and it
   remembers. Typing a URL (like `github.com`) opens it directly instead of searching.
 - **Quick links** — add, rename, delete and drag to reorder. FoxHome also takes
   the sites you visit most often and appends them as extra shortcuts
@@ -88,7 +89,7 @@ FoxHome 把 Firefox 的新标签页（以及可选的主页）换成自己的起
 ## 有什么
 
 - **时钟与日期** —— 不抢眼，可关闭。
-- **搜索** —— Google / 必应 / 百度 / DuckDuckGo，一键切换并记住；输入网址会直接打开而不是去搜索。
+- **搜索** —— Google / 必应 / 百度 / DuckDuckGo，也能自己增删改（只要填带 `%s` 的搜索地址），一键切换并记住；输入网址会直接打开而不是去搜索。
 - **快捷方式** —— 可增删改、拖拽排序；同时会按浏览历史把最常访问的站点自动补在后面（带「历史」角标），这些自动项不会写进你保存的链接，关掉开关即消失。
 - **最近浏览** —— 真实历史做成小卡片：标题、域名、相对时间、访问次数。支持同站点合并、关键词屏蔽，也可以整块关掉。
 - **自定义背景** —— 6 套内置渐变，或拖入自己的图片（会自动压缩并存在本机），带遮罩调节。
@@ -194,7 +195,7 @@ Issues and questions: https://github.com/AlterWL/FoxHome/issues
 ## 六、提交前后的检查清单
 
 - [ ] 在 AMO 搜 `FoxHome`，确认没有重名
-- [ ] `extension/manifest.json` 的 `version` 已递增（当前 1.0.5）
+- [ ] `extension/manifest.json` 的 `version` 已递增（当前 1.0.6）
 - [ ] 截图**不含任何真实浏览记录**（`docs/` 里那两张是中性示例数据）
 - [ ] `node tests/core.test.js` 全绿
 - [ ] `node tools/pack.js` 生成 `dist/foxhome-<版本>.zip`
