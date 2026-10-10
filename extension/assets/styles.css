@@ -271,7 +271,7 @@ body.dropping::after {
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: var(--glass);
-  backdrop-filter: var(--blur);
+  /* 毛玻璃只在有自定义图片背景时才开，理由见文件末尾的 .has-image-bg 规则 */
   color: inherit;
   font: inherit;
   text-decoration: none;
@@ -487,10 +487,17 @@ body.dropping::after {
   border: 1px solid transparent;
   border-radius: 14px;
   background: var(--glass);
-  backdrop-filter: var(--blur);
   color: inherit;
   text-decoration: none;
   transition: background 0.18s, border-color 0.18s, transform 0.18s;
+}
+
+/* 卡片最多有几十个（快捷方式 30 + 历史 24），每个 backdrop-filter 都是一层 GPU
+ * 合成。而预设背景是平滑渐变，模糊它肉眼看不出区别 —— 所以只在用户上传了图片、
+ * 背景有细节可模糊时才给卡片开毛玻璃。 */
+body.has-image-bg .link,
+body.has-image-bg .history-card {
+  backdrop-filter: var(--blur);
 }
 
 .history-card:hover {

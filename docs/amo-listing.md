@@ -194,7 +194,7 @@ Issues and questions: https://github.com/AlterWL/FoxHome/issues
 ## 六、提交前后的检查清单
 
 - [ ] 在 AMO 搜 `FoxHome`，确认没有重名
-- [ ] `extension/manifest.json` 的 `version` 已递增（当前 1.0.4）
+- [ ] `extension/manifest.json` 的 `version` 已递增（当前 1.0.5）
 - [ ] 截图**不含任何真实浏览记录**（`docs/` 里那两张是中性示例数据）
 - [ ] `node tests/core.test.js` 全绿
 - [ ] `node tools/pack.js` 生成 `dist/foxhome-<版本>.zip`

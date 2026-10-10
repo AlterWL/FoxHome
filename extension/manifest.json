@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FoxHome",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "把新标签页和主页变成自己的起始页：搜索框、常用快捷方式（按浏览历史自动补充）、最近浏览卡片。数据只在你的电脑上流转，不发送到任何服务器。",
   "browser_specific_settings": {
     "gecko": {

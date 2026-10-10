@@ -151,7 +151,11 @@
 
   function applyBackground() {
     const background = state.background;
-    if (background.type === 'image' && background.image) {
+    const hasImage = background.type === 'image' && !!background.image;
+    // 卡片要不要上毛玻璃：预设渐变本身平滑，模糊看不出区别，只有图片背景才值得
+    // （见 styles.css 里的 .has-image-bg 规则）—— 卡片最多几十个，省下的是 GPU 合成。
+    document.body.classList.toggle('has-image-bg', hasImage);
+    if (hasImage) {
       els.bg.style.background = '#0d0f13';
       els.bg.style.backgroundImage = 'url("' + background.image + '")';
       els.bg.style.backgroundSize = 'cover';
@@ -316,6 +320,20 @@
 
   /* ================================================================ 时钟 */
 
+  // 界面只显示到分钟，所以没必要每秒醒一次：每次对齐到「下一分钟」的边界再更新，
+  // 从每分钟 60 次降到 1 次。
+  const MINUTE_MS = 60000;
+  let clockTimer = 0;
+
+  function scheduleClock() {
+    window.clearTimeout(clockTimer);
+    const untilNextMinute = MINUTE_MS - (Date.now() % MINUTE_MS);
+    clockTimer = window.setTimeout(function () {
+      tickClock();
+      scheduleClock();
+    }, untilNextMinute + 50); // 多等 50ms，绕开系统计时误差
+  }
+
   function tickClock() {
     const now = new Date();
     const time = pad(now.getHours()) + ':' + pad(now.getMinutes());
@@ -456,6 +474,42 @@
    * 站点图标：优先网站 favicon，取不到就回退到「首字母 + 按域名生成的配色」色块。
    * 链接卡片和历史卡片共用。
    */
+  /**
+   * 外部图片（站点 favicon、第三方截图）会阻塞 window.load ——
+   * 新标签页的标签图标因此会转上好几秒（实测 12 个 favicon 把 load 拖到 3.4s）。
+   *
+   * 这里统一改成：首屏只渲染字母色块，等 load 之后、浏览器空闲时再补上外部图片。
+   */
+  const pendingImages = [];
+  let imagesUnlocked = false;
+
+  function loadExternalImage(image, url) {
+    if (imagesUnlocked) {
+      image.src = url;
+      return;
+    }
+    pendingImages.push({ image: image, url: url });
+  }
+
+  function releaseExternalImages() {
+    imagesUnlocked = true;
+    const queued = pendingImages.splice(0, pendingImages.length);
+    for (let i = 0; i < queued.length; i += 1) queued[i].image.src = queued[i].url;
+  }
+
+  if (document.readyState === 'complete') {
+    window.setTimeout(releaseExternalImages, 0);
+  } else {
+    window.addEventListener('load', function () {
+      // 再等浏览器空闲：首屏已经画完，取图标的网络请求不跟渲染抢资源
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(releaseExternalImages, { timeout: 1500 });
+      } else {
+        window.setTimeout(releaseExternalImages, 200);
+      }
+    });
+  }
+
   function buildSiteIcon(url, label, sizeClass) {
     const icon = document.createElement('span');
     icon.className = 'site-icon' + (sizeClass ? ' ' + sizeClass : '');
@@ -474,9 +528,11 @@
       image.className = 'site-icon-favicon';
       image.alt = '';
       image.draggable = false;
+      image.decoding = 'async';
+      image.referrerPolicy = 'no-referrer';
       image.addEventListener('load', function () { icon.classList.add('has-favicon'); });
       image.addEventListener('error', function () { image.remove(); });
-      image.src = favicon;
+      loadExternalImage(image, favicon);
       icon.appendChild(image);
     }
 
@@ -634,7 +690,9 @@
     return privilegedApi.history.search({
       text: '',
       startTime: startTime,
-      maxResults: 500,
+      // 历史卡片最多显示 24 张、自动快捷方式最多 30 个，按站点合并后再挑，
+      // 所以取最近 300 条足够覆盖；不必一次把 30 天的全部记录都拉进内存。
+      maxResults: 300,
     }).then(function (items) {
       history.status = 'ready';
       history.items = Array.isArray(items) ? items : [];
@@ -702,13 +760,14 @@
       thumb.className = 'history-thumb';
       const image = document.createElement('img');
       image.alt = '';
-      image.loading = 'lazy';
+      image.decoding = 'async';
+      image.referrerPolicy = 'no-referrer';
       // 第三方截图服务经常还没生成好，失败就退回纯文字卡片，不留破图
       image.addEventListener('error', function () {
         thumb.remove();
         anchor.classList.remove('has-thumb');
       });
-      image.src = Core.screenshotUrlFor(card.url, 480);
+      loadExternalImage(image, Core.screenshotUrlFor(card.url, 480));
       thumb.appendChild(image);
       anchor.appendChild(thumb);
     }
@@ -1202,7 +1261,7 @@
   buildEngineMenu();
   renderAll();
   tickClock();
-  window.setInterval(tickClock, 1000);
+  scheduleClock();
 
   // 向扩展要浏览历史：历史卡片要用它，「快捷方式按历史自动补充」也要用它
   if (state.history.enabled || state.shortcuts.autoFill) requestHistory();
