@@ -34,6 +34,15 @@
     engineBtn: $('engineBtn'),
     engineName: $('engineName'),
     engineMenu: $('engineMenu'),
+    engineList: $('engineList'),
+    engineAddBtn: $('engineAddBtn'),
+    engineDialog: $('engineDialog'),
+    engineForm: $('engineForm'),
+    engineDialogTitle: $('engineDialogTitle'),
+    engineNameInput: $('engineNameInput'),
+    engineUrlInput: $('engineUrlInput'),
+    engineError: $('engineError'),
+    engineCancel: $('engineCancel'),
     searchInput: $('searchInput'),
     links: $('links'),
     gearBtn: $('gearBtn'),
@@ -355,8 +364,12 @@
 
   /* ================================================================ 搜索 */
 
+  function currentEngine() {
+    return Core.engineIn(state.search.engines, state.search.engine) || state.search.engines[0];
+  }
+
   function renderEngine() {
-    const engine = Core.engineById(state.search.engine) || Core.ENGINES[0];
+    const engine = currentEngine();
     els.engineName.textContent = engine.name;
     const items = els.engineMenu.querySelectorAll('.engine-item');
     for (let i = 0; i < items.length; i += 1) {
@@ -366,8 +379,11 @@
     }
   }
 
+  /** 菜单按用户当前的引擎列表重建 —— 增删改之后要跟着变 */
   function buildEngineMenu() {
-    Core.ENGINES.forEach(function (engine) {
+    els.engineMenu.replaceChildren();
+
+    state.search.engines.forEach(function (engine) {
       const item = document.createElement('button');
       item.type = 'button';
       item.className = 'engine-item';
@@ -378,12 +394,165 @@
         state.search.engine = engine.id;
         save();
         renderEngine();
+        renderEngineList();
         closeEngineMenu();
         els.searchInput.focus();
       });
       els.engineMenu.appendChild(item);
     });
+
+    // 菜单尾巴上挂个通往设置的入口，省得为了加一个引擎去翻设置面板
+    const manage = document.createElement('button');
+    manage.type = 'button';
+    manage.className = 'engine-item engine-manage';
+    manage.textContent = '自定义搜索引擎…';
+    manage.addEventListener('click', function () {
+      closeEngineMenu();
+      openSheet();
+      els.engineList.scrollIntoView({ block: 'center' });
+    });
+    els.engineMenu.appendChild(manage);
   }
+
+  /** 设置面板里的引擎管理列表：点名字切换，右侧编辑/删除 */
+  function renderEngineList() {
+    els.engineList.replaceChildren();
+
+    state.search.engines.forEach(function (engine) {
+      const row = document.createElement('li');
+      row.className = 'engine-row';
+      if (engine.id === state.search.engine) row.classList.add('active');
+
+      const pick = document.createElement('button');
+      pick.type = 'button';
+      pick.className = 'engine-pick';
+      pick.title = '设为当前引擎';
+      const rowName = document.createElement('span');
+      rowName.className = 'engine-row-name';
+      rowName.textContent = engine.name;
+      const rowUrl = document.createElement('span');
+      rowUrl.className = 'engine-row-url';
+      rowUrl.textContent = engine.url;
+      pick.appendChild(rowName);
+      pick.appendChild(rowUrl);
+      pick.addEventListener('click', function () {
+        state.search.engine = engine.id;
+        save();
+        renderEngine();
+        renderEngineList();
+      });
+
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'engine-action';
+      edit.textContent = '编辑';
+      edit.addEventListener('click', function () { openEngineDialog(engine.id); });
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'engine-action danger';
+      remove.textContent = '删除';
+      // 至少留一个：只剩一个时不许再删，否则就没有引擎可用了
+      remove.disabled = state.search.engines.length <= 1;
+      if (remove.disabled) remove.title = '至少要保留一个搜索引擎';
+      remove.addEventListener('click', function () { removeEngine(engine.id); });
+
+      row.appendChild(pick);
+      row.appendChild(edit);
+      row.appendChild(remove);
+      els.engineList.appendChild(row);
+    });
+  }
+
+  function removeEngine(id) {
+    if (state.search.engines.length <= 1) {
+      toast('至少要保留一个搜索引擎', 'error');
+      return;
+    }
+    const engine = Core.engineIn(state.search.engines, id);
+    if (!engine) return;
+
+    state.search.engines = state.search.engines.filter(function (item) { return item.id !== id; });
+    if (state.search.engine === id) state.search.engine = state.search.engines[0].id;
+    save();
+    buildEngineMenu();
+    renderEngine();
+    renderEngineList();
+    toast('已删除「' + engine.name + '」');
+  }
+
+  let editingEngineId = null;
+
+  function openEngineDialog(id) {
+    editingEngineId = id || null;
+    const engine = editingEngineId ? Core.engineIn(state.search.engines, editingEngineId) : null;
+
+    els.engineDialogTitle.textContent = engine ? '编辑搜索引擎' : '添加搜索引擎';
+    els.engineNameInput.value = engine ? engine.name : '';
+    els.engineUrlInput.value = engine ? engine.url : '';
+    showEngineError('');
+    els.engineDialog.showModal();
+    window.setTimeout(function () { els.engineNameInput.focus(); }, 30);
+  }
+
+  function closeEngineDialog() {
+    editingEngineId = null;
+    els.engineDialog.close();
+  }
+
+  function showEngineError(message) {
+    els.engineError.textContent = message || '';
+    els.engineError.hidden = !message;
+  }
+
+  els.engineForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+
+    const name = els.engineNameInput.value.trim();
+    const url = els.engineUrlInput.value.trim();
+
+    if (!name) {
+      showEngineError('给这个搜索引擎起个名字吧');
+      els.engineNameInput.focus();
+      return;
+    }
+    if (!Core.isSearchTemplate(url)) {
+      showEngineError('搜索地址要以 http:// 或 https:// 开头，并且用 %s 表示关键词的位置');
+      els.engineUrlInput.focus();
+      return;
+    }
+    if (!editingEngineId && state.search.engines.length >= Core.MAX_ENGINES) {
+      showEngineError('最多只能有 ' + Core.MAX_ENGINES + ' 个搜索引擎');
+      return;
+    }
+
+    if (editingEngineId) {
+      const engine = Core.engineIn(state.search.engines, editingEngineId);
+      if (engine) {
+        engine.name = name.slice(0, Core.MAX_ENGINE_NAME);
+        engine.url = url;
+      }
+    } else {
+      const engine = Core.sanitizeEngine({ name: name, url: url });
+      if (!engine) {
+        showEngineError('这个名字或地址看起来不太对，再检查一下');
+        return;
+      }
+      state.search.engines.push(engine);
+    }
+
+    save();
+    buildEngineMenu();
+    renderEngine();
+    renderEngineList();
+    closeEngineDialog();
+  });
+
+  els.engineCancel.addEventListener('click', closeEngineDialog);
+  els.engineDialog.addEventListener('click', function (event) {
+    if (event.target === els.engineDialog) closeEngineDialog();
+  });
+  els.engineAddBtn.addEventListener('click', function () { openEngineDialog(null); });
 
   function openEngineMenu() {
     els.engineMenu.hidden = false;
@@ -410,7 +579,7 @@
       window.location.href = direct;
       return;
     }
-    window.location.href = Core.buildSearchUrl(state.search.engine, query);
+    window.location.href = Core.buildSearchUrl(state.search.engine, query, state.search.engines);
   }
 
   /* ================================================================ 链接 */
@@ -1236,7 +1405,9 @@
     applyBackground();
     renderClockVisibility();
     renderLinks();
+    buildEngineMenu();
     renderEngine();
+    renderEngineList();
     renderSwatches();
     renderHistoryBoard();
     syncControls();
@@ -1258,7 +1429,6 @@
     closeEngineMenu();
   });
 
-  buildEngineMenu();
   renderAll();
   tickClock();
   scheduleClock();

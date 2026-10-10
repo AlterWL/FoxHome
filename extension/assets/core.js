@@ -20,8 +20,13 @@
 
   const MAX_LINKS = 200;
   const MAX_NAME_LENGTH = 40;
+  const MAX_ENGINES = 12;
+  const MAX_ENGINE_NAME = 20;
 
-  /** 可选搜索引擎。想加一个，照着下面的格式追加一条即可。 */
+  /**
+   * 内置搜索引擎 —— 只是「首次打开时的默认列表」。
+   * 之后由用户自己增删改，实际用的是 data.search.engines（见 normalizeSearch）。
+   */
   const ENGINES = [
     { id: 'google', name: 'Google', url: 'https://www.google.com/search?q=%s' },
     { id: 'bing', name: '必应', url: 'https://www.bing.com/search?q=%s' },
@@ -182,15 +187,73 @@
 
   /* ---------------------------------------------------------------- 搜索引擎 */
 
-  function engineById(id) {
-    for (let i = 0; i < ENGINES.length; i += 1) {
-      if (ENGINES[i].id === id) return ENGINES[i];
+  /** 内置引擎的深拷贝，用作默认列表 —— 免得用户改到 ENGINES 本身。 */
+  function defaultEngines() {
+    return ENGINES.map(function (engine) {
+      return { id: engine.id, name: engine.name, url: engine.url };
+    });
+  }
+
+  function engineIn(engines, id) {
+    if (!Array.isArray(engines)) return null;
+    for (let i = 0; i < engines.length; i += 1) {
+      if (engines[i].id === id) return engines[i];
     }
     return null;
   }
 
-  function buildSearchUrl(engineId, query) {
-    const engine = engineById(engineId) || ENGINES[0];
+  function engineById(id) {
+    return engineIn(ENGINES, id);
+  }
+
+  /**
+   * 搜索地址得放得下关键词：http(s) 开头，并且含 %s 占位符 ——
+   * 把 %s 换成普通字符后仍是合法 URL 才算数，这样 javascript: 之类靠不进来。
+   */
+  function isSearchTemplate(url) {
+    if (typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (trimmed.length > 500 || trimmed.indexOf('%s') < 0) return false;
+    return /^https?:\/\/\S+$/i.test(trimmed.split('%s').join('q'));
+  }
+
+  function sanitizeEngine(raw) {
+    if (!isPlainObject(raw)) return null;
+    const name = typeof raw.name === 'string' ? raw.name.trim().slice(0, MAX_ENGINE_NAME) : '';
+    const url = typeof raw.url === 'string' ? raw.url.trim() : '';
+    if (!name || !isSearchTemplate(url)) return null;
+    const id = typeof raw.id === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(raw.id)
+      ? raw.id
+      : uid('engine');
+    return { id: id, name: name, url: url };
+  }
+
+  /** 整理引擎列表。空列表回落到内置默认，保证任何时候都至少有一个能用的。 */
+  function normalizeSearch(raw) {
+    const source = isPlainObject(raw) && Array.isArray(raw.engines) ? raw.engines : null;
+    let engines = [];
+    if (source) {
+      const seen = Object.create(null);
+      for (let i = 0; i < source.length && engines.length < MAX_ENGINES; i += 1) {
+        const engine = sanitizeEngine(source[i]);
+        if (!engine || seen[engine.id]) continue;
+        seen[engine.id] = true;
+        engines.push(engine);
+      }
+    }
+    if (!engines.length) engines = defaultEngines();
+
+    const wanted = isPlainObject(raw) ? raw.engine : null;
+    return {
+      engine: engineIn(engines, wanted) ? wanted : engines[0].id,
+      engines: engines,
+    };
+  }
+
+  /** engines 省略时按内置列表算，方便不关心自定义的调用方。 */
+  function buildSearchUrl(engineId, query, engines) {
+    const list = Array.isArray(engines) && engines.length ? engines : ENGINES;
+    const engine = engineIn(list, engineId) || list[0];
     return engine.url.replace('%s', encodeURIComponent(String(query == null ? '' : query).trim()));
   }
 
@@ -219,7 +282,7 @@
     return {
       version: DATA_VERSION,
       background: defaultBackground(),
-      search: { engine: ENGINES[0].id },
+      search: { engine: ENGINES[0].id, engines: defaultEngines() },
       layout: { showClock: true, showFavicons: true },
       links: DEFAULT_LINKS.map(function (item) {
         return { id: uid('link'), name: item.name, url: item.url };
@@ -267,8 +330,7 @@
 
     out.background = normalizeBackground(raw.background);
 
-    const engineId = isPlainObject(raw.search) ? raw.search.engine : null;
-    out.search = { engine: engineById(engineId) ? engineId : out.search.engine };
+    out.search = normalizeSearch(raw.search);
 
     if (isPlainObject(raw.layout)) {
       out.layout = {
@@ -573,6 +635,8 @@
     SHORTCUT_MIN_TOTAL: SHORTCUT_MIN_TOTAL,
     SHORTCUT_MAX_TOTAL: SHORTCUT_MAX_TOTAL,
     ENGINES: ENGINES,
+    MAX_ENGINES: MAX_ENGINES,
+    MAX_ENGINE_NAME: MAX_ENGINE_NAME,
     PRESETS: PRESETS,
     DEFAULT_LINKS: DEFAULT_LINKS,
 
@@ -589,6 +653,11 @@
     initialOf: initialOf,
 
     engineById: engineById,
+    engineIn: engineIn,
+    defaultEngines: defaultEngines,
+    sanitizeEngine: sanitizeEngine,
+    isSearchTemplate: isSearchTemplate,
+    normalizeSearch: normalizeSearch,
     buildSearchUrl: buildSearchUrl,
     presetById: presetById,
 

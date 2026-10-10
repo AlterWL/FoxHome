@@ -248,6 +248,105 @@ body.dropping::after {
 .engine-item.active { background: rgba(255, 255, 255, 0.14); }
 .engine-item.active::after { content: "✓"; color: var(--muted); }
 
+/* 菜单尾巴上的「自定义搜索引擎…」入口 */
+.engine-item.engine-manage {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 9px 9px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* ------------------------------------------------ 设置面板：搜索引擎管理 */
+
+.engine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.engine-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: var(--glass);
+}
+
+.engine-row.active {
+  border-color: var(--line-strong);
+  background: var(--glass-strong);
+}
+
+.engine-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engine-pick:hover { background: rgba(255, 255, 255, 0.08); }
+
+.engine-row-name {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine-row.active .engine-row-name::after {
+  content: "当前";
+  margin-left: 6px;
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.engine-row-url {
+  overflow: hidden;
+  color: var(--faint);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.engine-action {
+  flex: none;
+  padding: 4px 7px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.engine-action:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); color: var(--fg); }
+.engine-action.danger:hover:not(:disabled) { color: #ff9d9d; }
+.engine-action:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* 说明文字里的行内代码，比如 %s 占位符 */
+.hint code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--glass);
+  font-size: 11.5px;
+}
+
 /* -------------------------------------------------------------- 常用链接 */
 
 .links {

@@ -51,6 +51,106 @@ ok('查询词会被转义', () => assert.strictEqual(Core.buildSearchUrl('baidu'
 ok('未知引擎回退到第一个', () => assert.strictEqual(Core.buildSearchUrl('nope', 'x'), 'https://www.google.com/search?q=x'));
 ok('每个引擎模板都含 %s', () => Core.ENGINES.forEach(e => assert.ok(e.url.indexOf('%s') > -1, e.id + ' 缺少 %s')));
 
+console.log('搜索引擎：自定义增删改');
+ok('默认列表就是内置那四个', () => {
+  assert.deepStrictEqual(Core.defaultEngines().map(e => e.id), ['google', 'bing', 'baidu', 'duckduckgo']);
+});
+ok('默认列表是副本，改它不影响内置常量', () => {
+  const engines = Core.defaultEngines();
+  engines[0].name = '改过了';
+  assert.strictEqual(Core.ENGINES[0].name, 'Google');
+});
+ok('合法的自定义引擎通过校验并去掉首尾空格', () => {
+  const engine = Core.sanitizeEngine({ name: ' 起搜 ', url: ' https://so.example.com/?q=%s ' });
+  assert.strictEqual(engine.name, '起搜');
+  assert.strictEqual(engine.url, 'https://so.example.com/?q=%s');
+  assert.ok(engine.id);
+});
+ok('缺 %s 的模板被拒（关键词没地方放）', () => {
+  assert.strictEqual(Core.sanitizeEngine({ name: 'x', url: 'https://a.com/search' }), null);
+});
+ok('非 http(s) 的模板被拒', () => {
+  assert.strictEqual(Core.sanitizeEngine({ name: 'x', url: 'javascript:alert(%s)' }), null);
+  assert.strictEqual(Core.sanitizeEngine({ name: 'x', url: 'ftp://a.com/?q=%s' }), null);
+  assert.strictEqual(Core.sanitizeEngine({ name: 'x', url: 'file:///c:/?q=%s' }), null);
+});
+ok('http 也放行（本地搜索服务常用）', () => {
+  assert.ok(Core.sanitizeEngine({ name: 'x', url: 'http://127.0.0.1:8080/?q=%s' }));
+});
+ok('名称必填，超长会被截断', () => {
+  assert.strictEqual(Core.sanitizeEngine({ name: '   ', url: 'https://a.com/?q=%s' }), null);
+  const long = Core.sanitizeEngine({ name: new Array(51).join('x'), url: 'https://a.com/?q=%s' });
+  assert.strictEqual(long.name.length, Core.MAX_ENGINE_NAME);
+});
+ok('%s 出现在域名里也算合法', () => {
+  assert.ok(Core.sanitizeEngine({ name: 'x', url: 'https://%s.example.com/search' }));
+});
+ok('坏数据一律回落到内置默认', () => {
+  ['nonsense', {}, { engines: 'nope' }, { engines: [] }, { engines: [null, 42] }].forEach((raw) => {
+    const search = Core.normalizeSearch(raw);
+    assert.strictEqual(search.engines.length, 4);
+    assert.strictEqual(search.engine, 'google');
+  });
+});
+ok('自定义列表被保留，当前项默认取第一个', () => {
+  const search = Core.normalizeSearch({ engines: [
+    { id: 'a', name: 'A', url: 'https://a.com/?q=%s' },
+    { id: 'b', name: 'B', url: 'https://b.com/?q=%s' },
+  ] });
+  assert.deepStrictEqual(search.engines.map(e => e.id), ['a', 'b']);
+  assert.strictEqual(search.engine, 'a');
+});
+ok('记住的当前引擎还在就沿用', () => {
+  const search = Core.normalizeSearch({ engine: 'b', engines: [
+    { id: 'a', name: 'A', url: 'https://a.com/?q=%s' },
+    { id: 'b', name: 'B', url: 'https://b.com/?q=%s' },
+  ] });
+  assert.strictEqual(search.engine, 'b');
+});
+ok('当前引擎已被删掉时回落到第一个', () => {
+  const search = Core.normalizeSearch({ engine: '已经删了', engines: [
+    { id: 'a', name: 'A', url: 'https://a.com/?q=%s' },
+  ] });
+  assert.strictEqual(search.engine, 'a');
+});
+ok('非法项丢弃、重复 id 去重、超上限截断', () => {
+  const many = [];
+  for (let i = 0; i < Core.MAX_ENGINES + 5; i += 1) {
+    many.push({ id: 'e' + i, name: 'E' + i, url: 'https://e.com/?q=%s' });
+  }
+  many.push({ id: 'e0', name: '重复', url: 'https://dup.com/?q=%s' });
+  many.push({ name: '缺 %s', url: 'https://bad.com/' });
+  const search = Core.normalizeSearch({ engines: many });
+  assert.strictEqual(search.engines.length, Core.MAX_ENGINES);
+  assert.strictEqual(search.engines[0].name, 'E0');
+});
+ok('buildSearchUrl 用传进来的列表', () => {
+  const engines = [{ id: 'so', name: '起搜', url: 'https://so.example.com/?q=%s' }];
+  assert.strictEqual(Core.buildSearchUrl('so', 'a b', engines), 'https://so.example.com/?q=a%20b');
+});
+ok('buildSearchUrl 遇到未知 id 用列表第一个', () => {
+  const engines = [{ id: 'so', name: '起搜', url: 'https://so.example.com/?q=%s' }];
+  assert.strictEqual(Core.buildSearchUrl('nope', 'x', engines), 'https://so.example.com/?q=x');
+});
+ok('旧版本数据（只存了 engine）能平滑升级', () => {
+  const data = Core.normalizeData({ search: { engine: 'baidu' } });
+  assert.strictEqual(data.search.engine, 'baidu');
+  assert.strictEqual(data.search.engines.length, 4);
+});
+ok('normalizeData 保留自定义引擎列表', () => {
+  const data = Core.normalizeData({ search: {
+    engine: 'so',
+    engines: [{ id: 'so', name: '起搜', url: 'https://so.example.com/?q=%s' }],
+  } });
+  assert.strictEqual(data.search.engine, 'so');
+  assert.deepStrictEqual(data.search.engines.map(e => e.id), ['so']);
+});
+ok('默认数据自带内置引擎列表', () => {
+  const data = Core.defaultData();
+  assert.strictEqual(data.search.engines.length, 4);
+  assert.strictEqual(data.search.engine, 'google');
+});
+
 console.log('链接与数据清洗');
 ok('没填名称时用域名（去掉 www）', () => {
   const link = Core.sanitizeLink({ url: 'https://www.example.com/a' });
