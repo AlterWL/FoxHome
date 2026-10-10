@@ -38,7 +38,7 @@ extension/assets/core.js      纯逻辑：网址解析、搜索引擎、快捷�
 extension/assets/app.js       页面行为：渲染、交互、图片压缩、本地保存、读取历史
 extension/manifest.json       扩展清单（MV3）
 extension/icons/*.png         扩展图标（16/32/48/96/128，脚本生成）
-docs/*.png                    README 里用的截图
+docs/*.jpg                    README 与 AMO 用的截图（壁纸背景 + 中性示例数据）
 docs/amo-listing.md           AMO 上架素材（摘要、描述、审核员备注、隐私政策）
 tests/core.test.js            core.js 的测试
 tools/lib.js                  PNG 编码 / ZIP 打包 / CRC32，零依赖

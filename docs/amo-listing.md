@@ -16,7 +16,7 @@
 | **Support site** | `https://github.com/AlterWL/FoxHome` |
 | **Homepage** | 同上 |
 | **Privacy policy** | 用下面的文案，贴到 Support site 或 GitHub 的 wiki / 一个静态页上都行 |
-| **Screenshots** | `docs/screenshot-home.png`、`docs/screenshot-settings.png`（1280×800 是 AMO 的最佳显示尺寸，可以按这个比例补一张更宽的） |
+| **Screenshots** | `docs/screenshot-home.jpg`、`docs/screenshot-engines.jpg`、`docs/screenshot-settings.jpg`（1366×768；AMO 推荐 1280×800 或同比例，这三张可以直接用） |
 | **Notes to reviewer** | 下面的审核员备注，**强烈建议填** |
 
 ---
