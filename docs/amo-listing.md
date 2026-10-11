@@ -1,7 +1,9 @@
 # AMO 上架素材（listed）
 
-这份文件是**给 AMO 提交表单用的文案**，不是扩展的一部分（不会被 `tools/pack.js` 打进去）。
-提交时照段落复制即可。
+提交到 AMO 时照这里的段落复制即可。这份文件是给**提交表单**准备的，不参与扩展运行：扩展包
+`dist/foxhome-<版本>.zip` 里没有它（`--source` 打出的源码包里有，无妨）。
+
+> 上架流程本身看 [DEVELOPING.md](../DEVELOPING.md) 的「打包与发布到 AMO」。
 
 ---
 
@@ -9,30 +11,35 @@
 
 | 字段 | 填什么 |
 | --- | --- |
-| **Name** | `FoxHome`（提交前先在 AMO 搜一下有没有重名） |
-| **Summary** | 下面的英文摘要（≤250 字符），或中文版 |
+| **Name** | `FoxHome`（先在 AMO 搜一下有没有重名） |
+| **Summary** | 下面第二节的英文摘要（≤250 字符）；中文版可作备选 |
 | **Categories** | `Tabs`（主）+ `Appearance` |
+| **Tags** | `new tab`、`start page`、`homepage`、`bookmarks`、`history` |
 | **License** | `GPL-3.0`（本仓库的 LICENSE） |
 | **Support site** | `https://github.com/AlterWL/FoxHome` |
-| **Homepage** | 同上 |
-| **Privacy policy** | 用下面的文案，贴到 Support site 或 GitHub 的 wiki / 一个静态页上都行 |
-| **Screenshots** | `docs/screenshot-home.jpg`、`docs/screenshot-engines.jpg`、`docs/screenshot-settings.jpg`（1366×768；AMO 推荐 1280×800 或同比例，这三张可以直接用） |
-| **Notes to reviewer** | 下面的审核员备注，**强烈建议填** |
+| **Support email** | 可不填，Support site 已经够用 |
+| **Homepage** | 同上：`https://github.com/AlterWL/FoxHome` |
+| **Privacy policy** | **必须是能打开的 URL**。把第五节的文案放进本仓库的 `docs/privacy.md`（GitHub 会渲染成网页），然后填 `https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md` |
+| **Screenshots** | `docs/screenshot-home.jpg`、`docs/screenshot-engines.jpg`、`docs/screenshot-settings.jpg`（1366×768，是 AMO 建议的宽屏比例；最多 10 张） |
+| **Release notes** | 首次 listed 提交写"首个公开版本"即可，以后每次提交都顺手写一句改了什么 |
+| **Notes to reviewer** | 第四节的备注，**强烈建议填** |
+| **渠道（最关键的一步）** | 上传那一步选 **listed（On this site）**，否则只会签名、不会公开列出 |
+| **最低 Firefox 版本** | 109（`manifest.json` 里的 `strict_min_version`；109 起支持 MV3） |
 
 ---
 
 ## 二、Summary（≤250 字符）
 
-**英文（约 232 字符）**
+**英文（202 字符）**
 
 ```
-Turn Firefox's new tab and home page into a clean, local start page: clock, multi-engine search, quick links that auto-fill from your history, and recent-visit cards. Everything stays on your machine.
+Turn Firefox's new tab and home page into a clean, local start page: clock, custom search engines, quick links that auto-fill from your history, and recent-visit cards. Everything stays on your machine.
 ```
 
 **中文（备选）**
 
 ```
-把 Firefox 的新标签页和主页换成自己的清爽起始页：时钟、多引擎搜索、按浏览历史自动补充的快捷方式、最近浏览卡片。数据只在本机流转。
+把 Firefox 的新标签页和主页换成自己的清爽起始页：时钟、可自定义的搜索引擎、按浏览历史自动补充的快捷方式、最近浏览卡片。数据只在本机流转。
 ```
 
 ---
@@ -48,9 +55,10 @@ clean, self-contained start page.
 ## What you get
 
 - **Clock and date** — unobtrusive, can be turned off.
-- **Search** — Google, Bing, Baidu, or DuckDuckGo, and you can add, edit or remove
-  engines yourself with any `%s` search URL. Switch with one click and it
-  remembers. Typing a URL (like `github.com`) opens it directly instead of searching.
+- **Search** — Google, Bing, Baidu, or DuckDuckGo. You can also add, edit or
+  remove engines yourself: give one a name and any search URL containing `%s`,
+  and it shows up in the picker. Switching engines is one click and it remembers.
+  Typing a URL (like `github.com`) opens it directly instead of searching.
 - **Quick links** — add, rename, delete and drag to reorder. FoxHome also takes
   the sites you visit most often and appends them as extra shortcuts
   (marked with a "history" badge). Those auto-added ones are never written into
@@ -60,6 +68,7 @@ clean, self-contained start page.
   or turn the whole section off.
 - **Custom background** — six built-in gradients, or drop in your own image
   (it is compressed and stored locally), with an adjustable dimming layer.
+- **Keyboard first** — `/` or `Ctrl+K` jumps straight to the search box.
 
 ## Where your data goes
 
@@ -74,11 +83,13 @@ sent to a third-party screenshot service (s0.wp.com) to fetch thumbnails.
 ## Permissions, and why
 
 - **history** — powers the "recent visits" cards and the auto-filled quick links.
+  Nothing else needs a permission: the search-engine editor is plain local data.
 - **New tab override** — the whole point of the extension.
 - **Home page override** — also optional in effect: change your home page in
   `about:preferences#home` at any time and FoxHome will stop overriding it.
 
-No remote code, no analytics, no telemetry.
+No remote code, no analytics, no telemetry. Ships as-is: hand-written HTML/CSS/JS,
+no bundler, no minifier.
 ```
 
 **中文**
@@ -89,10 +100,11 @@ FoxHome 把 Firefox 的新标签页（以及可选的主页）换成自己的起
 ## 有什么
 
 - **时钟与日期** —— 不抢眼，可关闭。
-- **搜索** —— Google / 必应 / 百度 / DuckDuckGo，也能自己增删改（只要填带 `%s` 的搜索地址），一键切换并记住；输入网址会直接打开而不是去搜索。
+- **搜索** —— Google / 必应 / 百度 / DuckDuckGo。也能自己增删改：起个名字，再填一个带 `%s` 的搜索地址，它就出现在切换菜单里；一键切换并记住。输入网址会直接打开而不是去搜索。
 - **快捷方式** —— 可增删改、拖拽排序；同时会按浏览历史把最常访问的站点自动补在后面（带「历史」角标），这些自动项不会写进你保存的链接，关掉开关即消失。
 - **最近浏览** —— 真实历史做成小卡片：标题、域名、相对时间、访问次数。支持同站点合并、关键词屏蔽，也可以整块关掉。
 - **自定义背景** —— 6 套内置渐变，或拖入自己的图片（会自动压缩并存在本机），带遮罩调节。
+- **键盘优先** —— `/` 或 `Ctrl+K` 直接聚焦搜索框。
 
 ## 数据去哪了
 
@@ -102,11 +114,11 @@ FoxHome 把 Firefox 的新标签页（以及可选的主页）换成自己的起
 
 ## 权限用途
 
-- **history** —— 用于「最近浏览」卡片和快捷方式的自动补充。
+- **history** —— 用于「最近浏览」卡片和快捷方式的自动补充。其余功能不需要任何额外权限（搜索引擎编辑器只是一份本地数据）。
 - **接管新标签页** —— 这个扩展存在的意义本身。
 - **接管主页** —— 同样可以随时在 `about:preferences#home` 改回去，改掉之后 FoxHome 就不再覆盖。
 
-没有远程代码，没有统计，没有遥测。
+没有远程代码，没有统计，没有遥测。交付的就是源码：手写的 HTML/CSS/JS，没有打包器，没有压缩器。
 ```
 
 ---
@@ -142,13 +154,18 @@ Hi — a few notes on this add-on's design, in case they help:
 5. The code shipped is exactly the source: no bundler, no minifier, no
    transpiler, no remote code. The only generated files are the PNG icons (see
    tools/make-icons.js in the source package). Nothing is eval'd.
+
+6. The user-defined search engines are plain `{name, url}` records in local
+   storage — no new permission, no network request, no remote content. The URL
+   must start with http(s) and contain a `%s` placeholder, so `javascript:` and
+   similar schemes cannot be stored. The add-on only builds a navigation URL.
 ```
 
 ---
 
 ## 五、隐私政策文案
 
-贴到 Support site、GitHub wiki，或一个静态页上，然后把链接填进 AMO 的 Privacy policy 字段。
+把这段放进本仓库的 `docs/privacy.md`（GitHub 会把 Markdown 渲染成网页），然后把它的 URL 填进 AMO 的 Privacy policy 字段。
 
 ```markdown
 # FoxHome — Privacy Policy
@@ -170,6 +187,11 @@ stored by the add-on, not written to disk by the add-on, and not sent anywhere.
 
 You can disable the history-based features at any time in FoxHome's settings, or
 revoke the permission in `about:addons`.
+
+## Search engines
+
+Custom search engines are just a name and a URL template saved in your own
+browser's local storage. Adding one requires no permission and sends nothing.
 
 ## The one exception: website screenshots (off by default)
 
@@ -195,10 +217,11 @@ Issues and questions: https://github.com/AlterWL/FoxHome/issues
 ## 六、提交前后的检查清单
 
 - [ ] 在 AMO 搜 `FoxHome`，确认没有重名
-- [ ] `extension/manifest.json` 的 `version` 已递增（当前 1.0.6）
-- [ ] 截图**不含任何真实浏览记录**（`docs/` 里那两张是中性示例数据）
+- [ ] `extension/manifest.json` 的 `version` 已递增（当前 **1.0.6**）
+- [ ] 截图**不含任何真实浏览记录**（`docs/` 里那三张都是中性的示例数据）
+- [ ] 隐私政策的 URL 已经能打开（第五节的文案放到 `docs/privacy.md` 后就是 GitHub 的网页）
 - [ ] `node tests/core.test.js` 全绿
 - [ ] `node tools/pack.js` 生成 `dist/foxhome-<版本>.zip`
 - [ ] 开发者中心 → 打开现有 FoxHome → **Upload New Version** → 渠道选 **listed**
-- [ ] 填完上面所有字段，Notes to reviewer 一定要填
-- [ ] 提交后：自动校验 → 可能人工审核（几小时到几周）→ 公开上架
+- [ ] 表单字段按第一节填齐，**Notes to reviewer 一定要填**
+- [ ] 提交后的流程：自动校验 → 可能人工审核（几小时到几周）→ 公开上架
