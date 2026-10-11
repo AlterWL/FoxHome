@@ -61,6 +61,9 @@
   const HISTORY_DEFAULT_COUNT = 8;
   const HISTORY_MAX_COUNT = 24;
   const HISTORY_DAYS = 30;
+  /** 卡片上时间的写法：relative =「6 分钟前」，absolute =「10月10日 23:41」 */
+  const HISTORY_TIME_FORMATS = ['relative', 'absolute'];
+  const HISTORY_DEFAULT_TIME_FORMAT = 'relative';
 
   /** 快捷方式区：默认总个数（手动 + 自动），以及可调范围。 */
   const SHORTCUT_DEFAULT_TOTAL = 12;
@@ -366,6 +369,7 @@
       count: HISTORY_DEFAULT_COUNT,
       mergeByHost: true,
       useScreenshots: false,
+      timeFormat: HISTORY_DEFAULT_TIME_FORMAT,
       blocklist: [],
     };
   }
@@ -377,6 +381,7 @@
     out.enabled = raw.enabled !== false;
     out.mergeByHost = raw.mergeByHost !== false;
     out.useScreenshots = raw.useScreenshots === true;
+    if (HISTORY_TIME_FORMATS.indexOf(raw.timeFormat) >= 0) out.timeFormat = raw.timeFormat;
 
     const count = Number(raw.count);
     if (Number.isFinite(count)) out.count = clamp(Math.round(count), 1, HISTORY_MAX_COUNT);
@@ -492,6 +497,31 @@
   }
 
   /**
+   * 「10月10日 23:41」这类绝对时间。按"离现在多远"逐级省掉冗余的部分：
+   * 今天只说时刻，今年省掉年份，更早才写全年份。
+   */
+  function absoluteTime(timestamp, now) {
+    const value = Number(timestamp);
+    if (!Number.isFinite(value) || value <= 0) return '';
+
+    const then = new Date(value);
+    const base = new Date(Number.isFinite(Number(now)) ? Number(now) : Date.now());
+    const clock = pad2(then.getHours()) + ':' + pad2(then.getMinutes());
+    const sameYear = then.getFullYear() === base.getFullYear();
+
+    if (sameYear && then.getMonth() === base.getMonth() && then.getDate() === base.getDate()) {
+      return clock;
+    }
+    if (sameYear) return (then.getMonth() + 1) + '月' + then.getDate() + '日 ' + clock;
+    return then.getFullYear() + '年' + (then.getMonth() + 1) + '月' + then.getDate() + '日 ' + clock;
+  }
+
+  /** 卡片上的时间文本，按设置决定用哪种写法。 */
+  function formatHistoryTime(timestamp, format, now) {
+    return format === 'absolute' ? absoluteTime(timestamp, now) : relativeTime(timestamp, now);
+  }
+
+  /**
    * 扩展返回的原始记录 → 要渲染的卡片列表：
    * 清洗 → 按屏蔽词过滤 → 去重 → 按时间倒序 → （可选）同域名合并 → 截断。
    */
@@ -518,7 +548,7 @@
 
     cards = cards.slice(0, options.count);
     cards.forEach(function (card) {
-      card.timeText = relativeTime(card.lastVisitTime, now);
+      card.timeText = formatHistoryTime(card.lastVisitTime, options.timeFormat, now);
       card.label = card.title || card.host.replace(/^www\./i, '');
     });
     return cards;
@@ -631,6 +661,8 @@
     HISTORY_DEFAULT_COUNT: HISTORY_DEFAULT_COUNT,
     HISTORY_MAX_COUNT: HISTORY_MAX_COUNT,
     HISTORY_DAYS: HISTORY_DAYS,
+    HISTORY_TIME_FORMATS: HISTORY_TIME_FORMATS,
+    HISTORY_DEFAULT_TIME_FORMAT: HISTORY_DEFAULT_TIME_FORMAT,
     SHORTCUT_DEFAULT_TOTAL: SHORTCUT_DEFAULT_TOTAL,
     SHORTCUT_MIN_TOTAL: SHORTCUT_MIN_TOTAL,
     SHORTCUT_MAX_TOTAL: SHORTCUT_MAX_TOTAL,
@@ -667,6 +699,8 @@
     normalizeHistoryItem: normalizeHistoryItem,
     mergeHistoryByHost: mergeHistoryByHost,
     relativeTime: relativeTime,
+    absoluteTime: absoluteTime,
+    formatHistoryTime: formatHistoryTime,
     buildHistoryCards: buildHistoryCards,
     screenshotUrlFor: screenshotUrlFor,
 

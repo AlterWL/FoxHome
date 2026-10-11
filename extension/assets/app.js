@@ -70,6 +70,7 @@
     historyCountRange: $('historyCountRange'),
     historyCountValue: $('historyCountValue'),
     historyMergeToggle: $('historyMergeToggle'),
+    historyTimeToggle: $('historyTimeToggle'),
     historyShotToggle: $('historyShotToggle'),
     historyBlocklist: $('historyBlocklist'),
     historyStatus: $('historyStatus'),
@@ -880,6 +881,40 @@
     renderLinks();
   }
 
+  /* -------------------------------------------------- 历史变了要跟着刷新 */
+
+  /**
+   * 删掉浏览记录后卡片一直显示旧的，只能靠手动刷新 —— 这里接上扩展的通知。
+   * 两处克制，都是为了别白白耗性能：
+   *   - 批量删除会连着触发好几次，所以节流合并成一次查询；
+   *   - 页面在后台时只记一个标记，等切回前台再刷（后台刷新没人看得到）。
+   * 另外「最近浏览」和「自动补充快捷方式」都关着时，压根不需要历史，直接不理会。
+   */
+  const HISTORY_SYNC_DELAY = 800;
+  let historySyncTimer = 0;
+  let historySyncPending = false;
+
+  function scheduleHistorySync() {
+    if (!state.history.enabled && !state.shortcuts.autoFill) return;
+    if (document.hidden) {
+      historySyncPending = true;
+      return;
+    }
+
+    window.clearTimeout(historySyncTimer);
+    historySyncTimer = window.setTimeout(function () {
+      historySyncTimer = 0;
+      requestHistory();
+    }, HISTORY_SYNC_DELAY);
+  }
+
+  if (privilegedApi) {
+    const removed = privilegedApi.history.onVisitRemoved;
+    const visited = privilegedApi.history.onVisited;
+    if (removed && typeof removed.addListener === 'function') removed.addListener(scheduleHistorySync);
+    if (visited && typeof visited.addListener === 'function') visited.addListener(scheduleHistorySync);
+  }
+
   function renderHistoryBoard() {
     if (!state.history.enabled) {
       els.historyBoard.classList.add('hidden');
@@ -1160,6 +1195,7 @@
 
     els.historyToggle.checked = state.history.enabled;
     els.historyMergeToggle.checked = state.history.mergeByHost;
+    els.historyTimeToggle.checked = state.history.timeFormat === 'absolute';
     els.historyShotToggle.checked = state.history.useScreenshots;
     els.historyCountRange.value = String(state.history.count);
     els.historyCountValue.textContent = String(state.history.count);
@@ -1277,6 +1313,12 @@
 
   els.historyMergeToggle.addEventListener('change', function () {
     state.history.mergeByHost = els.historyMergeToggle.checked;
+    save();
+    renderHistoryBoard();
+  });
+
+  els.historyTimeToggle.addEventListener('change', function () {
+    state.history.timeFormat = els.historyTimeToggle.checked ? 'absolute' : 'relative';
     save();
     renderHistoryBoard();
   });
@@ -1443,6 +1485,13 @@
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) return;
     tickClock();
+
+    // 后台期间历史变过：直接重新拉一次，省得先画一遍旧的再覆盖
+    if (historySyncPending) {
+      historySyncPending = false;
+      scheduleHistorySync();
+      return;
+    }
     if (history.status === 'ready') renderHistoryBoard();
   });
 })();

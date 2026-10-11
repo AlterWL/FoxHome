@@ -217,7 +217,7 @@ Issues and questions: https://github.com/AlterWL/FoxHome/issues
 ## 六、提交前后的检查清单
 
 - [ ] 在 AMO 搜 `FoxHome`，确认没有重名
-- [ ] `extension/manifest.json` 的 `version` 已递增（当前 **1.0.6**）
+- [ ] `extension/manifest.json` 的 `version` 已递增（当前 **1.0.7**）
 - [ ] 截图**不含任何真实浏览记录**（`docs/` 里那三张都是中性的示例数据）
 - [ ] 隐私政策的 URL 已经能打开（第五节的文案放到 `docs/privacy.md` 后就是 GitHub 的网页）
 - [ ] `node tests/core.test.js` 全绿

@@ -347,6 +347,53 @@ ok('时间戳缺失时不显示', () => {
   assert.strictEqual(Core.relativeTime(undefined, Date.now()), '');
 });
 
+console.log('浏览历史：绝对时间');
+ok('今天只显示时刻', () => {
+  const now = new Date(2026, 9, 11, 14, 30, 0).getTime();
+  assert.strictEqual(Core.absoluteTime(new Date(2026, 9, 11, 9, 5, 0).getTime(), now), '09:05');
+});
+ok('同年不同天显示「X月X日 时刻」', () => {
+  const now = new Date(2026, 9, 11, 14, 30, 0).getTime();
+  assert.strictEqual(Core.absoluteTime(new Date(2026, 9, 3, 23, 41, 0).getTime(), now), '10月3日 23:41');
+});
+ok('跨年带上年份', () => {
+  const now = new Date(2026, 9, 11, 14, 30, 0).getTime();
+  assert.strictEqual(Core.absoluteTime(new Date(2025, 11, 31, 8, 0, 0).getTime(), now), '2025年12月31日 08:00');
+});
+ok('个位数的时和分都补零', () => {
+  const now = new Date(2026, 0, 2, 3, 4, 0).getTime();
+  assert.strictEqual(Core.absoluteTime(new Date(2026, 0, 1, 7, 8, 0).getTime(), now), '1月1日 07:08');
+});
+ok('时间戳缺失时不显示', () => {
+  assert.strictEqual(Core.absoluteTime(0, Date.now()), '');
+  assert.strictEqual(Core.absoluteTime(null, Date.now()), '');
+});
+ok('formatHistoryTime 按设置选写法', () => {
+  const now = new Date(2026, 9, 11, 14, 30, 0).getTime();
+  const then = new Date(2026, 9, 11, 14, 20, 0).getTime();
+  assert.strictEqual(Core.formatHistoryTime(then, 'relative', now), '10 分钟前');
+  assert.strictEqual(Core.formatHistoryTime(then, 'absolute', now), '14:20');
+  assert.strictEqual(Core.formatHistoryTime(then, undefined, now), '10 分钟前');
+  assert.strictEqual(Core.formatHistoryTime(then, '乱填的值', now), '10 分钟前');
+});
+
+console.log('浏览历史：时间格式设置');
+ok('默认是相对时间', () => {
+  assert.strictEqual(Core.defaultHistorySettings().timeFormat, 'relative');
+});
+ok('合法值保留，非法值回落到默认', () => {
+  assert.strictEqual(Core.normalizeHistorySettings({ timeFormat: 'absolute' }).timeFormat, 'absolute');
+  assert.strictEqual(Core.normalizeHistorySettings({ timeFormat: 'relative' }).timeFormat, 'relative');
+  assert.strictEqual(Core.normalizeHistorySettings({ timeFormat: '乱填的值' }).timeFormat, 'relative');
+  assert.strictEqual(Core.normalizeHistorySettings({}).timeFormat, 'relative');
+});
+ok('buildHistoryCards 的 timeText 跟着设置变', () => {
+  const now = new Date(2026, 9, 11, 14, 30, 0).getTime();
+  const items = [{ url: 'https://a.com/', title: 'A', lastVisitTime: now - 8 * 60000, visitCount: 1 }];
+  assert.strictEqual(Core.buildHistoryCards(items, { timeFormat: 'relative' }, now)[0].timeText, '8 分钟前');
+  assert.strictEqual(Core.buildHistoryCards(items, { timeFormat: 'absolute' }, now)[0].timeText, '14:22');
+});
+
 console.log('浏览历史：整条流水线');
 const rawHistory = [
   { url: 'https://a.com/1', title: 'A 旧', lastVisitTime: 100, visitCount: 1 },
