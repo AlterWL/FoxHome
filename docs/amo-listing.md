@@ -21,10 +21,35 @@
 | **Homepage** | 同上：`https://github.com/AlterWL/FoxHome` |
 | **Privacy policy** | **必须是能打开的 URL**。把第五节的文案放进本仓库的 `docs/privacy.md`（GitHub 会渲染成网页），然后填 `https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md` |
 | **Screenshots** | `docs/screenshot-home.jpg`、`docs/screenshot-engines.jpg`、`docs/screenshot-settings.jpg`（1366×768，是 AMO 建议的宽屏比例；最多 10 张） |
-| **Release notes** | 首次 listed 提交写"首个公开版本"即可，以后每次提交都顺手写一句改了什么 |
+| **Release notes** | 用下面那段「版本说明」，本次是 **1.0.7** |
 | **Notes to reviewer** | 第四节的备注，**强烈建议填** |
 | **渠道（最关键的一步）** | 上传那一步选 **listed（On this site）**，否则只会签名、不会公开列出 |
 | **最低 Firefox 版本** | 109（`manifest.json` 里的 `strict_min_version`；109 起支持 MV3） |
+
+### 版本说明（Release notes）
+
+每次提交 AMO 都要填一段。这次直接复制：
+
+**英文**
+
+```
+- Deleting history entries now updates the recent-visits cards right away,
+  instead of waiting for the page to be reopened.
+- Recent visits can show the exact time (20:31, or 10月9日 20:37 for older
+  entries) instead of "3 hours ago" — the system locale decides the wording.
+- Search engines can be added, edited and removed by the user (from 1.0.6).
+```
+
+**中文**
+
+```
+- 删掉浏览记录后，「最近浏览」卡片会立刻跟着更新，不再需要重开页面。
+- 「最近浏览」可以显示具体时刻（今天的显示 20:31，更早的显示 10月9日 20:37），
+  替代原来的「3 小时前」—— 设置面板里有新开关。
+- 搜索引擎支持自己增删改（1.0.6 起）。
+```
+
+> 如果你这次提交同时包含了 1.0.6 和 1.0.7 的改动（比如上一版还没传过），把上面三条一起用即可。
 
 ---
 
@@ -159,6 +184,15 @@ Hi — a few notes on this add-on's design, in case they help:
    storage — no new permission, no network request, no remote content. The URL
    must start with http(s) and contain a `%s` placeholder, so `javascript:` and
    similar schemes cannot be stored. The add-on only builds a navigation URL.
+
+7. Since 1.0.7 the add-on also subscribes to `history.onVisitRemoved` and
+   `history.onVisited`. Before that, deleting history entries left stale cards
+   on screen until the page was reopened. These listeners only schedule a re-run
+   of the same in-page `history.search()` query — they add no permission, write
+   nothing to storage, and send nothing anywhere. To keep the cost low the
+   refresh is debounced (800 ms, so a bulk delete results in one query) and is
+   skipped entirely while the page sits in a background tab; it runs when the
+   page becomes visible again.
 ```
 
 ---
@@ -187,6 +221,11 @@ stored by the add-on, not written to disk by the add-on, and not sent anywhere.
 
 You can disable the history-based features at any time in FoxHome's settings, or
 revoke the permission in `about:addons`.
+
+To keep the cards accurate, FoxHome also listens for `history.onVisited` and
+`history.onVisitRemoved` — for example so that deleting history entries updates
+the page instead of leaving stale cards behind. These listeners do nothing
+except trigger another in-page read; nothing is stored and nothing is sent.
 
 ## Search engines
 
