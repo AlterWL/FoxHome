@@ -19,7 +19,7 @@
 | **Support site** | `https://github.com/AlterWL/FoxHome` |
 | **Support email** | 可不填，Support site 已经够用 |
 | **Homepage** | 同上：`https://github.com/AlterWL/FoxHome` |
-| **Privacy policy** | **必须是能打开的 URL**。把第五节的文案放进本仓库的 `docs/privacy.md`（GitHub 会渲染成网页），然后填 `https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md` |
+| **Privacy policy** | 已经放在仓库里，直接填 `https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md` |
 | **Screenshots** | `docs/screenshot-home.jpg`、`docs/screenshot-engines.jpg`、`docs/screenshot-settings.jpg`（1366×768，是 AMO 建议的宽屏比例；最多 10 张） |
 | **Release notes** | 用下面那段「版本说明」，本次是 **1.0.7** |
 | **Notes to reviewer** | 第四节的备注，**强烈建议填** |
@@ -197,9 +197,15 @@ Hi — a few notes on this add-on's design, in case they help:
 
 ---
 
-## 五、隐私政策文案
+## 五、隐私政策
 
-把这段放进本仓库的 `docs/privacy.md`（GitHub 会把 Markdown 渲染成网页），然后把它的 URL 填进 AMO 的 Privacy policy 字段。
+已经落成文件：**[`docs/privacy.md`](privacy.md)**（中英双语，GitHub 会渲染成网页）。AMO 的 Privacy policy 字段直接填：
+
+```
+https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md
+```
+
+下面是其中的英文部分，方便对照 —— 改措辞时记得两边同步：
 
 ```markdown
 # FoxHome — Privacy Policy
@@ -258,7 +264,7 @@ Issues and questions: https://github.com/AlterWL/FoxHome/issues
 - [ ] 在 AMO 搜 `FoxHome`，确认没有重名
 - [ ] `extension/manifest.json` 的 `version` 已递增（当前 **1.0.7**）
 - [ ] 截图**不含任何真实浏览记录**（`docs/` 里那三张都是中性的示例数据）
-- [ ] 隐私政策的 URL 已经能打开（第五节的文案放到 `docs/privacy.md` 后就是 GitHub 的网页）
+- [ ] 隐私政策的 URL 能打开：<https://github.com/AlterWL/FoxHome/blob/main/docs/privacy.md>
 - [ ] `node tests/core.test.js` 全绿
 - [ ] `node tools/pack.js` 生成 `dist/foxhome-<版本>.zip`
 - [ ] 开发者中心 → 打开现有 FoxHome → **Upload New Version** → 渠道选 **listed**
